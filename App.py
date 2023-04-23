@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 from scipy.io import wavfile
 from scipy import signal
 import matplotlib.colors as colors
+from matplotlib.animation import FuncAnimation
+import io
+import wave
 
 
 st.set_page_config(
@@ -43,7 +46,8 @@ def plot_spectrogram(uploaded_file):
         st.pyplot(fig)
 
 
-def plot_wav_file(uploaded_file,color):
+
+def plot_wav_file(uploaded_file, color):
     # Check if a file was uploaded
     if uploaded_file is not None:
         # Load the file data
@@ -51,6 +55,7 @@ def plot_wav_file(uploaded_file,color):
 
         # Calculate the duration of the file
         duration = len(data) / sample_rate
+
         # Create a spectrogram
         freqs, times, spectrogram = signal.spectrogram(data, sample_rate)
 
@@ -59,32 +64,48 @@ def plot_wav_file(uploaded_file,color):
 
         # Create a plot
         fig, ax = plt.subplots(1, 1)
-       
+
         ax.plot(time, data, 'b-', linewidth=3)
         ax.grid()
         ax.set_facecolor(ax.get_facecolor())
+
         # Set the plot title and labels
-        font1 = {'family':'serif','color':'white','size':20}
+        font1 = {'family': 'serif', 'color': 'white', 'size': 20}
         ax.set_xlabel("Time (s)", fontsize=12, fontdict=font1)
         ax.set_ylabel("Amplitude", fontsize=12, fontdict=font1)
-        
+
         # Display the plot
-        ax.plot(time,data,color=color,linewidth=3)
-        st.plotly_chart(fig,use_container_width=True)
-        plot_spectrogram(uploaded_file)
+        line = ax.plot(time, data, color=color, linewidth=3)[0]
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Create an audio player widget
+        with io.BytesIO() as wav_file:
+            wav_writer = wave.open(wav_file, "wb")
+            wav_writer.setnchannels(1)
+            wav_writer.setsampwidth(2)
+            wav_writer.setframerate(sample_rate)
+            wav_writer.writeframes(data)
+            wav_writer.close()
+            st.audio(wav_file.getvalue(), format='audio/wav')
+
         
+        # Define the function to update the plot in real-time
+        def update_plot(frame):
+            line.set_ydata(data[frame])
+            return line,
+
+        # Define the animation
+        frames = len(data)
+        interval = 1000 / sample_rate
+        animation = FuncAnimation(fig, update_plot, frames=frames, interval=interval, blit=True)
+        
+        # plotting the spectrogram
+        plot_spectrogram(uploaded_file)
 
 
 
 # Divide the page into two columns
 leftCol, rightCol = st.columns((1, 1), gap="small")
-
-    
-# Divide the page into 4 containers (rows)
-row1 = st.container()
-row2 = st.container()
-row3 = st.container()
-row4 = st.container()
 
 # uploading the files
 uploadedFile = st.sidebar.file_uploader("Choose a CSV file1 📂 ")
