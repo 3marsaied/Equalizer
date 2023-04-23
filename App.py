@@ -54,7 +54,7 @@ def plot_wav_file(uploaded_file,color):
         
 
         # Plot the spectrogram with the normalized values
-        ax2.pcolormesh(times, freqs, spectrogram, cmap='inferno', norm=norm)
+        ax2.pcolormesh(times, freqs, spectrogram, cmap='viridis', norm=norm)
 
         ax2.set_facecolor('white')
         ax2.set_ylabel("Frequency (Hz)", fontsize=12)
