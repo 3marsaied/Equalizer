@@ -14,7 +14,34 @@ st.set_page_config(
 )
 
 st.write("<p style='font-size:38px; text-align: center;'><b>Welcome to our website</b></p>", unsafe_allow_html=True)
-# plt.style.use('bmh')
+
+def plot_spectrogram(uploaded_file):
+    # Check if a file was uploaded
+    if uploaded_file is not None:
+        # Load the file data
+        sample_rate, data = wavfile.read(uploaded_file)
+
+        # Calculate the duration of the file
+        duration = len(data) / sample_rate
+
+        # Create a plot
+        fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+
+        # Normalize the values in the spectrogram array
+        spectrogram, freqs, bins, im = ax.specgram(data, Fs=sample_rate, cmap='viridis')
+
+        # Set x and y limits of the spectrogram plot
+        ax.set_xlim([0, duration])
+        ax.set_ylim([0, max(freqs)])
+
+        # Set the labels for the plot
+        ax.set_xlabel("Time (s)", fontsize=12)
+        ax.set_ylabel("Frequency (Hz)", fontsize=12)
+        ax.set_title("Spectrogram", fontsize=12)
+
+        # Display the plot
+        st.pyplot(fig)
+
 
 def plot_wav_file(uploaded_file,color):
     # Check if a file was uploaded
@@ -33,13 +60,6 @@ def plot_wav_file(uploaded_file,color):
         # Create a plot
         fig, ax = plt.subplots(1, 1)
        
-        # Create the figure and axes objects
-        fig2, ax2 = plt.subplots(figsize=(8, 4))
-
-        # Normalize the values in the spectrogram array
-        norm = colors.Normalize(vmin=spectrogram.min(), vmax=spectrogram.max())
-
-
         ax.plot(time, data, 'b-', linewidth=3)
         ax.grid()
         ax.set_facecolor(ax.get_facecolor())
@@ -51,19 +71,8 @@ def plot_wav_file(uploaded_file,color):
         # Display the plot
         ax.plot(time,data,color=color,linewidth=3)
         st.plotly_chart(fig,use_container_width=True)
+        plot_spectrogram(uploaded_file)
         
-
-        # Plot the spectrogram with the normalized values
-        ax2.pcolormesh(times, freqs, spectrogram, cmap='viridis', norm=norm)
-
-        ax2.set_facecolor('white')
-        ax2.set_ylabel("Frequency (Hz)", fontsize=12)
-        ax2.set_xlabel("Time (s)", fontsize=12)
-        ax2.set_title("Spectrogram", fontsize=12)
-        ax2.grid()
-
-        # Display the plot
-        st.pyplot(fig2)
 
 
 
