@@ -129,11 +129,19 @@ def uniform_range_mode(uploaded_file,color):
         # Create an empty list to store the slider values
         slider_values = []
 
-        # Create a slider for each frequency range
+       # Create a slider for each frequency range
         for i in range(10):
-            slider = st.sidebar.slider(f"Frequency Range {i+1}", 0, 100, 50)
-            slider_values.append(slider)
+            # Calculate the start and end frequency of this range
+            start_freq = i * slider_range
+            end_freq = (i + 1) * slider_range
 
+            # Create a slider with the start and end frequencies
+            slider = st.sidebar.slider(f"Frequency Range {i+1}", int(start_freq), int(end_freq), int((start_freq + end_freq) / 2))
+
+            # Append the slider value to the list of slider values
+            slider_values.append(slider)
+        
+        
         # Apply the frequency filters to the signal
         modified_freqs = apply_filters(data, sample_rate, freq_range, slider_values)
 
