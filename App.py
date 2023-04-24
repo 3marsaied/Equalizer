@@ -2,12 +2,9 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
-from scipy import signal
-import matplotlib.colors as colors
-from matplotlib.animation import FuncAnimation
 import io
 import wave
-import streamlit_vertical_slider  as svs
+import scipy.signal as signal
 
 
 st.set_page_config(
@@ -19,12 +16,8 @@ st.set_page_config(
 
 st.write("<p style='font-size:38px; text-align: center;'><b>Welcome to our website</b></p>", unsafe_allow_html=True)
 
-def plot_spectrogram(uploaded_file):
-    # Check if a file was uploaded
-    if uploaded_file is not None:
-        # Load the file data
-        sample_rate, data = wavfile.read(uploaded_file)
-
+def plot_spectrogram(sample_rate, data):
+         
         # Calculate the duration of the file
         duration = len(data) / sample_rate
 
@@ -82,10 +75,10 @@ def plot_wav_file(uploaded_file, color):
             st.audio(wav_file.getvalue(), format='audio/wav')
         
         # plotting the spectrogram
-        plot_spectrogram(uploaded_file)
+        plot_spectrogram(sample_rate,data)
 
 
-def apply_filters(data, sample_rate, freq_range, slider_values):
+def uniform_range_mode_apply_filters(data, sample_rate, freq_range, slider_values):
     # Calculate the number of samples in the data
     n_samples = len(data)
 
@@ -112,6 +105,7 @@ def apply_filters(data, sample_rate, freq_range, slider_values):
         modified_freqs[freq_indices] = slider_value * data_ft[freq_indices]
 
     return modified_freqs
+
 
 
 def uniform_range_mode(uploaded_file,color):
@@ -143,7 +137,7 @@ def uniform_range_mode(uploaded_file,color):
         
         
         # Apply the frequency filters to the signal
-        modified_freqs = apply_filters(data, sample_rate, freq_range, slider_values)
+        modified_freqs = uniform_range_mode_apply_filters(data, sample_rate, freq_range, slider_values)
 
         # Compute the inverse Fourier transform of the modified frequency components
         reconstructed_signal = np.fft.irfft(modified_freqs)
@@ -167,18 +161,102 @@ def uniform_range_mode(uploaded_file,color):
             st.audio(wav_file.getvalue(), format='audio/wav')
 
         # Create a plot of the spectrogram
-        fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+        fig2, ax2 = plt.subplots(1, 1, figsize=(8, 4))
         # Normalize the values in the spectrogram array
         spectrogram, freqs, bins, im = ax.specgram(data, Fs=sample_rate, cmap='viridis')
         # Set x and y limits of the spectrogram plot
-        ax.set_xlim([0, len(data)/sample_rate])
-        ax.set_ylim([0, freq_range])
+        ax2.set_xlim([0, len(data)/sample_rate])
+        ax2.set_ylim([0, freq_range])
         # Set the labels for the plot
-        ax.set_xlabel("Time (s)", fontsize=12)
-        ax.set_ylabel("Frequency (Hz)", fontsize=12)
-        ax.set_title("Spectrogram", fontsize=12)
+        ax2.set_xlabel("Time (s)", fontsize=12)
+        ax2.set_ylabel("Frequency (Hz)", fontsize=12)
+        ax2.set_title("Spectrogram", fontsize=12)
         # Display the plot
+        st.pyplot(fig2)
+
+
+
+
+
+
+
+def musical_instruments_mode(uploaded_file, color):
+    # Check if a file was uploaded
+    if uploaded_file is not None:
+        # Load the file data
+        sample_rate, data = wavfile.read(uploaded_file)
+
+        # Calculate the duration of the file
+        duration = len(data) / sample_rate
+
+        # Create a time axis
+        time = np.linspace(0, duration, len(data))
+
+
+        # Create sliders for each musical instrument
+        sliders = {}
+        sliders['Piano'] = st.sidebar.slider('Piano', 0.0, 1.0, 1.0, 0.1)
+        sliders['Guitar'] = st.sidebar.slider('Guitar', 0.0, 1.0, 1.0, 0.1)
+        sliders['Bass'] = st.sidebar.slider('Bass', 0.0, 1.0, 1.0, 0.1)
+        sliders['Drums'] = st.sidebar.slider('Drums', 0.0, 1.0, 1.0, 0.1)
+        sliders['Strings'] = st.sidebar.slider('Strings', 0.0, 1.0, 1.0, 0.1)
+        sliders['Synth'] = st.sidebar.slider('Synth', 0.0, 1.0, 1.0, 0.1)
+
+        # Create a dictionary of frequency ranges for each musical instrument
+        freq_ranges = {
+            'Piano': (26, 4186),
+            'Guitar': (82, 1175),
+            'Bass': (41, 262),
+            'Drums': (20, 20000),
+            'Strings': (196, 2637),
+            'Synth': (27, 4186)
+        }
+
+        # Calculate the number of samples in the data
+        n_samples = len(data)
+
+        # Compute the Fourier transform of the data
+        data_ft = np.fft.rfft(data)
+
+        # Create an array of frequencies for each frequency bin
+        freqs = np.fft.rfftfreq(n_samples, d=1/sample_rate)
+
+        # Initialize an empty array to store the modified frequency components
+        modified_freqs = np.zeros_like(data_ft)
+
+        # Apply the frequency filters to the data
+        for instrument, freq_range in freq_ranges.items():
+            # Determine the indices of the frequency components within the current range
+            freq_indices = np.where((freqs >= freq_range[0]) & (freqs < freq_range[1]))[0]
+
+            # Apply the current slider value to the frequency components within the current range
+            slider_value = sliders[instrument]
+            modified_freqs[freq_indices] = data_ft[freq_indices] * slider_value
+            # Compute the inverse Fourier transform of the modified frequency components
+            modified_data = np.fft.irfft(modified_freqs)
+
+        # Create a plot of the modified data
+        fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+        ax.plot(time, modified_data, color=color, linewidth=1.5, linestyle='-')
+
+        # Set the plot title and labels
+        ax.set_title("Modified WAV file")
+        ax.set_xlabel("Time (s)", fontsize=12)
+        ax.set_ylabel("Amplitude", fontsize=12)
         st.pyplot(fig)
+
+        # Create an audio player widget
+        with io.BytesIO() as wav_file:
+            wav_writer = wave.open(wav_file, "wb")
+            wav_writer.setnchannels(1)
+            wav_writer.setsampwidth(2)
+            wav_writer.setframerate(sample_rate)
+            wav_writer.writeframes(data)
+            wav_writer.close()
+            st.audio(wav_file.getvalue(), format='audio/wav')
+
+        plot_spectrogram(sample_rate, data)
+            
 
 
 
@@ -207,4 +285,7 @@ with leftCol:
 with rightCol:
     if selected_option == "Uniform Range Mode":
         uniform_range_mode(uploadedFile,color2)
-
+    # if selected_option == "vowels Mode":
+        # vowels_mode(uploadedFile,color2)
+    if selected_option == "Musical Instruments Mode":
+        musical_instruments_mode(uploadedFile,color2)
