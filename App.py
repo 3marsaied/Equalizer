@@ -7,6 +7,7 @@ import matplotlib.colors as colors
 from matplotlib.animation import FuncAnimation
 import io
 import wave
+import streamlit_vertical_slider  as svs
 
 
 st.set_page_config(
@@ -126,3 +127,20 @@ with leftCol:
 
     plot_wav_file(uploadedFile,color1)
 
+
+if uploadedFile:
+    st.write("<p style='font-size:20px;'>Adjust the parameters:</p>", unsafe_allow_html=True)
+    cols = st.columns(10)
+
+    for i in range(10):
+        with cols[i%10]:
+            st.write(f"<h3>Slider {i+1}</h3>", unsafe_allow_html=True)
+            svs.vertical_slider(
+            key=f"slider_{i}",
+            default_value=50,
+            min_value=0,
+            max_value=100,
+            step=1,
+            slider_color="blue",
+            track_color="lightgray",
+            thumb_color="red",)
