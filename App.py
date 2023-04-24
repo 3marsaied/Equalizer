@@ -81,11 +81,14 @@ with leftCol:
 
 with rightCol:
     if selected_option == "Uniform Range Mode":
-        uniform_range_mode(uploadedFile,color2)
-    if selected_option == "vowels Mode":
-        vowel_mode(uploadedFile,color2)
+        if uploadedFile:
+            uniform_range_mode(uploadedFile,color2)
+    if selected_option == 'Vowels Mode':
+        if uploadedFile:
+            vowel_mode(uploadedFile,color2)
     if selected_option == "Musical Instruments Mode":
-        musical_instruments_mode(uploadedFile,color2)
-    if selected_option == "Biological Instruments Mode":
+        if uploadedFile:
+            musical_instruments_mode(uploadedFile,color2)
+    if selected_option == 'Biological Signal Abnormalities':
         if uploadedFile:
             apply_abnormalities(uploadedFile,color2)

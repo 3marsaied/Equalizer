@@ -1,16 +1,16 @@
 import streamlit as st
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.io import wavfile
-import io
 import wave
-from scipy.fft import fft, fftfreq, fftshift
+import struct
+import math
+import matplotlib.pyplot as plt
+import io
 from spectrogram import *
-
 
 def vowel_mode(uploaded_file,color):
     # Load the audio file
-    sample_rate, data = wavfile.read(uploaded_file)
+    audio = wave.open(uploaded_file, 'rb')
+    sample_rate = audio.getframerate()
+    num_frames = audio.getnframes()
 
     # Define the frequencies of the vowel components
     freq_a = 730
@@ -18,53 +18,61 @@ def vowel_mode(uploaded_file,color):
     freq_i = 540
     freq_o = 300
     freq_u = 3000
-    freq_aa = 1200
-    freq_ee = 2700
-    freq_ii = 2250
-    freq_oo = 500
-    freq_uu = 1000
 
-    # Create 10 sliders for the vowel components
-    st.sidebar.markdown("## Vowels Mode")
-    slider_a = st.sidebar.slider("A", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
-    slider_e = st.sidebar.slider("E", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
-    slider_i = st.sidebar.slider("I", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
-    slider_o = st.sidebar.slider("O", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
-    slider_u = st.sidebar.slider("U", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
-    slider_aa = st.sidebar.slider("AA", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
-    slider_ee = st.sidebar.slider("EE", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
-    slider_ii = st.sidebar.slider("II", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
-    slider_oo = st.sidebar.slider("OO", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
-    slider_uu = st.sidebar.slider("UU", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
+    # Read audio data
+    signal = []
+    for i in range(num_frames):
+        data = audio.readframes(1)
+        sample = struct.unpack('<h', data)[0]
+        signal.append(sample)
 
-    # Apply the vowel mode to the data
-    freqs = fftfreq(len(data)) * sample_rate
-    data_fft = fft(data)
+    # Create 5 sliders for the vowel components
+    max_amp_a = max(signal)
+    max_amp_e = max(signal)
+    max_amp_i = max(signal)
+    max_amp_o = max(signal)
+    max_amp_u = max(signal)
+    slider_a = st.sidebar.slider("A", min_value=0, max_value=max_amp_a, step=1, value=int(max_amp_a/2))
+    slider_e = st.sidebar.slider("E", min_value=0, max_value=max_amp_e, step=1, value=int(max_amp_e/2))
+    slider_i = st.sidebar.slider("I", min_value=0, max_value=max_amp_i, step=1, value=int(max_amp_i/2))
+    slider_o = st.sidebar.slider("O", min_value=0, max_value=max_amp_o, step=1, value=int(max_amp_o/2))
+    slider_u = st.sidebar.slider("U", min_value=0, max_value=max_amp_u, step=1, value=int(max_amp_u/2))
 
-    data_fft[int(freq_a)] *= slider_a
-    data_fft[int(freq_e)] *= slider_e
-    data_fft[int(freq_i)] *= slider_i
-    data_fft[int(freq_o)] *= slider_o
-    data_fft[int(freq_u)] *= slider_u
-    data_fft[int(freq_aa)] *= slider_aa
-    data_fft[int(freq_ee)] *= slider_ee
-    data_fft[int(freq_ii)] *= slider_ii
-    data_fft[int(freq_oo)] *= slider_oo
-    data_fft[int(freq_uu)] *= slider_uu
+    # Calculate the time axis and frequency axis
+    time = [float(i)/sample_rate for i in range(num_frames)]
+    freqs = [float(i)*sample_rate/num_frames for i in range(num_frames//2)]
 
-    time = np.arange(len(data))/float(sample_rate)
+    # Fourier Transform
+    spectrum = []
+    for f in range(num_frames//2):
+        freq = freqs[f]
+        amplitude = 0
+        for i in range(num_frames):
+            amplitude += signal[i]*math.cos(2*math.pi*freq*time[i])
+        spectrum.append(amplitude)
 
-    # Inverse transform to get the modified audio data
-    modified_data = np.real(np.fft.ifft(data_fft))
+    # Modify the amplitude of the specified frequency components using sliders
+    spectrum[freqs.index(freq_a)] *= slider_a/max_amp_a
+    spectrum[freqs.index(freq_e)] *= slider_e/max_amp_e
+    spectrum[freqs.index(freq_i)] *= slider_i/max_amp_i
+    spectrum[freqs.index(freq_o)] *= slider_o/max_amp_o
+    spectrum[freqs.index(freq_u)] *= slider_u/max_amp_u
 
-    # Create a plot of the modified data
-    fig, ax = plt.subplots(1, 1, figsize=(8, 4))
-    ax.plot(time, modified_data, color=color, linewidth=1.5, linestyle='-')
+    # Inverse Fourier Transform
+    signal_new = []
+    for i in range(num_frames):
+        sample = 0
+        for f in range(num_frames//2):
+            freq = freqs[f]
+            amplitude = spectrum[f]
+            sample += amplitude*math.cos(2*math.pi*freq*time[i])
+        signal_new.append(sample)
 
-    # Set the plot title and labels
-    ax.set_title("Modified WAV file")
-    ax.set_xlabel("Time (s)", fontsize=12)
-    ax.set_ylabel("Amplitude", fontsize=12)
+    # Plot the modified audio signal
+    fig, ax = plt.subplots(1,1,figsize=(8, 4))
+    ax.plot(time, signal_new, color=color, linewidth=1.5, linestyle='-')
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Amplitude')
     st.pyplot(fig)
 
     # Create an audio player widget
@@ -73,8 +81,9 @@ def vowel_mode(uploaded_file,color):
         wav_writer.setnchannels(1)
         wav_writer.setsampwidth(2)
         wav_writer.setframerate(sample_rate)
-        wav_writer.writeframes(data)
+        wav_writer.writeframes(struct.pack('<' + 'h'*len(signal_new), *signal_new))
         wav_writer.close()
         st.audio(wav_file.getvalue(), format='audio/wav')
 
-        plot_spectrogram(sample_rate, data)
+    # Plot the spectrogram of the modified audio signal
+    plot_spectrogram(sample_rate, signal_new, freqs)
