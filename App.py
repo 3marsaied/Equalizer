@@ -52,9 +52,9 @@ def plot_wav_file(uploaded_file, color):
             wav_writer.writeframes(data)
             wav_writer.close()
             st.audio(wav_file.getvalue(), format='audio/wav')
-        
+        spectrogram, freqs, bins, im = ax.specgram(data, Fs=sample_rate, cmap='viridis')
         # plotting the spectrogram
-        plot_spectrogram(sample_rate,data)
+        plot_spectrogram(sample_rate,data,freqs)
 
 
 # Divide the page into two columns
@@ -83,7 +83,7 @@ with rightCol:
     if selected_option == "Uniform Range Mode":
         uniform_range_mode(uploadedFile,color2)
     if selected_option == "vowels Mode":
-        vowels_mode(uploadedFile,color2)
+        vowel_mode(uploadedFile,color2)
     if selected_option == "Musical Instruments Mode":
         musical_instruments_mode(uploadedFile,color2)
     if selected_option == "Biological Instruments Mode":

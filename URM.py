@@ -5,7 +5,7 @@ from scipy.io import wavfile
 import io
 import wave
 from spectrogram import *
-
+from spectrogram import *
 
 def uniform_range_mode_apply_filters(data, sample_rate, freq_range, slider_values):
     # Calculate the number of samples in the data
@@ -33,7 +33,7 @@ def uniform_range_mode_apply_filters(data, sample_rate, freq_range, slider_value
         slider_value = slider_values[i]
         modified_freqs[freq_indices] = slider_value * data_ft[freq_indices]
 
-    return modified_freqs
+    return modified_freqs,freqs
 
 
 
@@ -59,15 +59,18 @@ def uniform_range_mode(uploaded_file,color):
             end_freq = (i + 1) * slider_range
 
             # Create a slider with the start and end frequencies
-            slider = st.sidebar.slider(f"Frequency Range {i+1}", int(start_freq), int(end_freq), int((start_freq + end_freq) / 2))
+            slider = st.sidebar.slider(f"Frequency Range {i+1}", int(start_freq), int(end_freq), int(start_freq))
 
             # Append the slider value to the list of slider values
             slider_values.append(slider)
         
         
         # Apply the frequency filters to the signal
-        modified_freqs = uniform_range_mode_apply_filters(data, sample_rate, freq_range, slider_values)
+        modified_freqs,freqs = uniform_range_mode_apply_filters(data, sample_rate, freq_range, slider_values)
 
+        # Compute the inverse Fourier transform to get the modified audio signal
+        modified_data = np.fft.irfft(modified_freqs)
+        
         # Compute the inverse Fourier transform of the modified frequency components
         reconstructed_signal = np.fft.irfft(modified_freqs)
 
@@ -85,20 +88,8 @@ def uniform_range_mode(uploaded_file,color):
             wav_writer.setnchannels(1)
             wav_writer.setsampwidth(2)
             wav_writer.setframerate(sample_rate)
-            wav_writer.writeframes(data)
+            wav_writer.writeframes(modified_data)
             wav_writer.close()
             st.audio(wav_file.getvalue(), format='audio/wav')
 
-        # Create a plot of the spectrogram
-        fig2, ax2 = plt.subplots(1, 1, figsize=(8, 4))
-        # Normalize the values in the spectrogram array
-        spectrogram, freqs, bins, im = ax.specgram(data, Fs=sample_rate, cmap='viridis')
-        # Set x and y limits of the spectrogram plot
-        ax2.set_xlim([0, len(data)/sample_rate])
-        ax2.set_ylim([0, freq_range])
-        # Set the labels for the plot
-        ax2.set_xlabel("Time (s)", fontsize=12)
-        ax2.set_ylabel("Frequency (Hz)", fontsize=12)
-        ax2.set_title("Spectrogram", fontsize=12)
-        # Display the plot
-        st.pyplot(fig2)
+        plot_spectrogram(sample_rate, modified_data, freqs)

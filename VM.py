@@ -4,87 +4,77 @@ import matplotlib.pyplot as plt
 from scipy.io import wavfile
 import io
 import wave
-import scipy.signal as signal
-from scipy import signal
+from scipy.fft import fft, fftfreq, fftshift
 from spectrogram import *
 
-def vowels_mode(uploaded_file, color):
-    if uploaded_file:
-        # Load the WAV file data
-        sample_rate, data = wavfile.read(uploaded_file)
 
-        # Define the center frequencies and bandwidths for each vowel
-        vowel_centers = {'a': 730, 'e': 660, 'i': 500, 'o': 450, 'u': 325}
-        vowel_bandwidths = {'a': 50, 'e': 70, 'i': 40, 'o': 70, 'u': 50}
+def vowel_mode(uploaded_file,color):
+    # Load the audio file
+    sample_rate, data = wavfile.read(uploaded_file)
 
-        # Create an empty list to store the slider values
-        slider_values = []
+    # Define the frequencies of the vowel components
+    freq_a = 730
+    freq_e = 660
+    freq_i = 540
+    freq_o = 300
+    freq_u = 3000
+    freq_aa = 1200
+    freq_ee = 2700
+    freq_ii = 2250
+    freq_oo = 500
+    freq_uu = 1000
 
-        # Create a slider for each vowel
-        for vowel in vowel_centers:
-            # Calculate the start and end frequencies of the vowel band
-            start_freq = vowel_centers[vowel] - vowel_bandwidths[vowel]
-            end_freq = vowel_centers[vowel] + vowel_bandwidths[vowel]
+    # Create 10 sliders for the vowel components
+    st.sidebar.markdown("## Vowels Mode")
+    slider_a = st.sidebar.slider("A", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
+    slider_e = st.sidebar.slider("E", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
+    slider_i = st.sidebar.slider("I", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
+    slider_o = st.sidebar.slider("O", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
+    slider_u = st.sidebar.slider("U", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
+    slider_aa = st.sidebar.slider("AA", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
+    slider_ee = st.sidebar.slider("EE", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
+    slider_ii = st.sidebar.slider("II", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
+    slider_oo = st.sidebar.slider("OO", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
+    slider_uu = st.sidebar.slider("UU", min_value=0.0, max_value=1.0, step=0.01, value=1.0)
 
-        # Create a slider with the start and end frequencies
-        slider = st.sidebar.slider(f"{vowel.capitalize()} ({start_freq}-{end_freq} Hz)", start_freq, end_freq, (start_freq + end_freq) // 2, 1)
+    # Apply the vowel mode to the data
+    freqs = fftfreq(len(data)) * sample_rate
+    data_fft = fft(data)
 
-        # Append the slider value to the list of slider values
-        slider_values.append(slider)
+    data_fft[int(freq_a)] *= slider_a
+    data_fft[int(freq_e)] *= slider_e
+    data_fft[int(freq_i)] *= slider_i
+    data_fft[int(freq_o)] *= slider_o
+    data_fft[int(freq_u)] *= slider_u
+    data_fft[int(freq_aa)] *= slider_aa
+    data_fft[int(freq_ee)] *= slider_ee
+    data_fft[int(freq_ii)] *= slider_ii
+    data_fft[int(freq_oo)] *= slider_oo
+    data_fft[int(freq_uu)] *= slider_uu
 
-        # Apply the frequency filters to the signal
-        # Define filter order and type
-        filter_order = 2
-        filter_type = 'bandpass'
+    time = np.arange(len(data))/float(sample_rate)
 
-        # Calculate the frequency range for each slider
-        slider_range = sample_rate / 2 / 10
+    # Inverse transform to get the modified audio data
+    modified_data = np.real(np.fft.ifft(data_fft))
 
-        # Create an array of filter cutoff frequencies based on slider values
-        filter_freqs = np.zeros(10)
-        for i, slider_value in enumerate(slider_values):
-            filter_freqs[i] = slider_value
+    # Create a plot of the modified data
+    fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+    ax.plot(time, modified_data, color=color, linewidth=1.5, linestyle='-')
 
-        # Apply filters to the signal
-        filtered_data_ft = np.fft.rfft(data)
-        for i in range(10):
-            # Calculate the filter coefficients
-            filter_low = filter_freqs[i] - slider_range / 2
-            filter_high = filter_freqs[i] + slider_range / 2
-            filter_low_norm = filter_low / (sample_rate / 2)
-            filter_high_norm = filter_high / (sample_rate / 2)
-            b, a = signal.butter(filter_order, [filter_low_norm, filter_high_norm], btype=filter_type)
+    # Set the plot title and labels
+    ax.set_title("Modified WAV file")
+    ax.set_xlabel("Time (s)", fontsize=12)
+    ax.set_ylabel("Amplitude", fontsize=12)
+    st.pyplot(fig)
 
-            # Apply the filter
-            filtered_data_ft = signal.lfilter(b, a, filtered_data_ft)
+    # Create an audio player widget
+    with io.BytesIO() as wav_file:
+        wav_writer = wave.open(wav_file, "wb")
+        wav_writer.setnchannels(1)
+        wav_writer.setsampwidth(2)
+        wav_writer.setframerate(sample_rate)
+        wav_writer.writeframes(data)
+        wav_writer.close()
+        st.audio(wav_file.getvalue(), format='audio/wav')
 
-        # Compute the inverse Fourier transform of the modified frequency components
-        filtered_data = np.fft.irfft(filtered_data_ft)
-
-        # Normalize the filtered data
-        filtered_data = filtered_data / np.max(np.abs(filtered_data))
-
-        # Create a time axis
-        time = np.linspace(0, len(filtered_data) / sample_rate, len(filtered_data))
-
-        # Create a plot
-        fig, ax = plt.subplots(1, 1, figsize=(8, 4))
-        ax.plot(time, filtered_data, color=color, linewidth=1.5, linestyle='-')
-
-        # Set the plot title and labels
-        ax.set_title("Filtered WAV file")
-        ax.set_xlabel("Time (s)", fontsize=12)
-        ax.set_ylabel("Amplitude", fontsize=12)
-
-        # Display the plot
-        st.pyplot(fig)
-
-        # Create an audio player widget for the filtered data
-        with io.BytesIO() as wav_file:
-            wav_writer = wave.open(wav_file, "wb")
-            wav_writer.setnchannels(1)
-            wav_writer.setsampwidth(2)
-            wav_writer.setframerate(sample_rate)
-            wav_writer.writeframes(data)
-            wav_writer.close()
-            st.audio(wav_file.getvalue(), format='audio/wav')
+        plot_spectrogram(sample_rate, data)

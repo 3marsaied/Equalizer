@@ -4,9 +4,8 @@ import matplotlib.pyplot as plt
 from scipy.io import wavfile
 import io
 import wave
-import scipy.signal as signal
-from scipy import signal
 from spectrogram import *
+
 
 def musical_instruments_mode(uploaded_file, color):
     # Check if a file was uploaded
@@ -20,15 +19,15 @@ def musical_instruments_mode(uploaded_file, color):
         # Create a time axis
         time = np.linspace(0, duration, len(data))
 
-
         # Create sliders for each musical instrument
         sliders = {}
-        sliders['Piano'] = st.sidebar.slider('Piano', 0.0, 1.0, 1.0, 0.1)
-        sliders['Guitar'] = st.sidebar.slider('Guitar', 0.0, 1.0, 1.0, 0.1)
-        sliders['Bass'] = st.sidebar.slider('Bass', 0.0, 1.0, 1.0, 0.1)
-        sliders['Drums'] = st.sidebar.slider('Drums', 0.0, 1.0, 1.0, 0.1)
-        sliders['Strings'] = st.sidebar.slider('Strings', 0.0, 1.0, 1.0, 0.1)
-        sliders['Synth'] = st.sidebar.slider('Synth', 0.0, 1.0, 1.0, 0.1)
+        sliders['Piano'] = st.sidebar.slider('Piano', 26, 4186, 26)
+        sliders['Guitar'] = st.sidebar.slider('Guitar', 82, 1175, 82)
+        sliders['Bass'] = st.sidebar.slider('Bass', 41, 262, 41)
+        sliders['Drums'] = st.sidebar.slider('Drums', 28, 20000,28)
+        sliders['Strings'] = st.sidebar.slider('Strings', 196, 2637, 196)
+        sliders['Synth'] = st.sidebar.slider('Synth', 27, 4186, 27)
+
 
         # Create a dictionary of frequency ranges for each musical instrument
         freq_ranges = {
@@ -54,23 +53,24 @@ def musical_instruments_mode(uploaded_file, color):
 
         # Apply the frequency filters to the data
         for instrument, freq_range in freq_ranges.items():
-            # Determine the indices of the frequency components within the current range
-            freq_indices = np.where((freqs >= freq_range[0]) & (freqs < freq_range[1]))[0]
+            # Extract the minimum and maximum frequency values for the current instrument
+            fmin, fmax = freq_range
+            # Find the indices of the frequency bins within the specified range
+            idx_min = np.argmin(np.abs(freqs - fmin))
+            idx_max = np.argmin(np.abs(freqs - fmax))
 
-            # Apply the current slider value to the frequency components within the current range
-            slider_value = sliders[instrument]
-            modified_freqs[freq_indices] = data_ft[freq_indices] * slider_value
-            # Compute the inverse Fourier transform of the modified frequency components
-            modified_data = np.fft.irfft(modified_freqs)
+            # Set the values of the frequency components outside the range to zero
+            modified_freqs[idx_min:idx_max] = sliders[instrument] * data_ft[idx_min:idx_max]
 
-        # Create a plot of the modified data
-        fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+        # Compute the inverse Fourier transform to get the modified audio signal
+        modified_data = np.fft.irfft(modified_freqs)
+
+
+        # Plot the modified audio signal
+        fig, ax = plt.subplots(1,1,figsize=(8, 4))
         ax.plot(time, modified_data, color=color, linewidth=1.5, linestyle='-')
-
-        # Set the plot title and labels
-        ax.set_title("Modified WAV file")
-        ax.set_xlabel("Time (s)", fontsize=12)
-        ax.set_ylabel("Amplitude", fontsize=12)
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Amplitude')
         st.pyplot(fig)
 
         # Create an audio player widget
@@ -79,9 +79,9 @@ def musical_instruments_mode(uploaded_file, color):
             wav_writer.setnchannels(1)
             wav_writer.setsampwidth(2)
             wav_writer.setframerate(sample_rate)
-            wav_writer.writeframes(data)
+            wav_writer.writeframes(modified_data    )
             wav_writer.close()
             st.audio(wav_file.getvalue(), format='audio/wav')
 
-        plot_spectrogram(sample_rate, data)
-            
+        # Plot the spectrogram of the modified audio signal
+        plot_spectrogram(sample_rate, modified_data, freqs)
